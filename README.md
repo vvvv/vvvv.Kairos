@@ -75,7 +75,13 @@ Run this command once to build the Fallout solution
 fallout --help
 ```
 
-Run this command to create a profile named `local` where you'll store the NuGet API key and a Github token. This profile is gitignored.
+Create your local profile file (it is gitignored):
+
+```
+Set-Content .fallout/parameters.local.json '{ "$schema": "build.schema.json" }' -Encoding ascii
+```
+
+Store your secrets securely in the local profile (these are the NuGet.org API key and the GitHub token to upload releases)
 
 ```
 fallout :secrets local
