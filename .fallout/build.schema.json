@@ -27,6 +27,7 @@
         "Clean",
         "Compile",
         "Pack",
+        "Publish",
         "Restore"
       ]
     },
@@ -107,7 +108,24 @@
     }
   },
   "allOf": [
-    {},
+    {
+      "properties": {
+        "GitHubToken": {
+          "type": "string",
+          "description": "GitHub token",
+          "default": "Secrets must be entered via 'fallout :secrets [profile]'"
+        },
+        "NuGetApiKey": {
+          "type": "string",
+          "description": "NuGet API Key",
+          "default": "Secrets must be entered via 'fallout :secrets [profile]'"
+        },
+        "NugetSource": {
+          "type": "string",
+          "description": "Nuget feed URL"
+        }
+      }
+    },
     {
       "$ref": "#/definitions/FalloutBuild"
     }

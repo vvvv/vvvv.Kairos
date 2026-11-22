@@ -41,10 +41,44 @@ nuget install VL.Kairos
 * Custom Interpolation/Blending/Compositing technique registration
 * Data binding helpers for vvvv app control
 
-
-
 ## Contributing to the development
 
 1. Clone the repository
 2. Build the solution located in the `src` folder in `Release` mode. 
 3. You can then start contributing to the lib.
+
+## Release
+
+### GitHub Action
+
+### Local
+
+If you want to release from your own machine, run the following steps :
+
+1. Install Fallout (see [fallout.build](https://fallout.build/))
+
+```
+dotnet tool install Fallout.GlobalTool --global
+```
+
+2. Store your secrets securely
+
+`cd` to the root of the repository
+
+```
+cd vvvv.Kairos
+```
+
+Run this command once to build the Fallout solution
+
+```
+fallout --help
+```
+
+Run this command to create a profile named `local` where you'll store the NuGet API key and a Github token. This profile is gitignored.
+
+```
+fallout :secrets local
+```
+
+You'll be prompted to pick a password, and to provide values for the aforementioned secrets.
