@@ -23,4 +23,4 @@ jobs:
         run: ./build.ps1 Publish
         env:
           NuGetApiKey: ${{ steps.login.outputs.NUGET_API_KEY }}
-          GitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          GitHubToken: ${{ secrets.GH_RELEASE_TOKEN }}
