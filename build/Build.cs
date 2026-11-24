@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Xml.Linq;
 using Fallout.Common;
 using Fallout.Common.IO;
 using Fallout.Common.Tools.DotNet;
@@ -26,6 +28,8 @@ class Build : FalloutBuild
 
     [Parameter("GitHub token")] [Secret] private readonly string GitHubToken = string.Empty;
 
+    [Parameter("Path to the vvvv installation used by the patch tests")] readonly string VvvvDir = string.Empty;
+    
     // Package names
     private IReadOnlyList<string> Packages => new[]
     {
@@ -48,6 +52,10 @@ class Build : FalloutBuild
     // Touchy
     private AbsolutePath TouchyProject => RootDirectory / "VL.Touchy" / "src" / "VL.Touchy.csproj";
 
+    AbsolutePath TestProject => RootDirectory / "tests" / "vvvv.Kairos.Tests" / "vvvv.Kairos.Tests.csproj";
+    AbsolutePath TestResultsDirectory => ArtifactsDirectory / "test-results";
+    AbsolutePath TestResultsFile => TestResultsDirectory / "results.trx";
+    
     private Target Clean => _ => _
         .Before(Restore)
         .Executes(() =>
@@ -83,11 +91,48 @@ class Build : FalloutBuild
                 .SetConfiguration("Release"));
         });
 
+
     private Target Test => _ => _
+        .DependsOn(Compile)
         .Executes(() =>
         {
-
+            TestResultsDirectory.CreateOrCleanDirectory();
+            try
+            {
+                DotNetTest(s => s
+                    .SetProjectFile(TestProject)
+                    .When(_ => !string.IsNullOrWhiteSpace(VvvvDir), s => s
+                        .SetProcessEnvironmentVariable("VVVV_DIR", VvvvDir))
+                    .SetVerbosity(DotNetVerbosity.normal)
+                    .SetConfiguration("Release")
+                    .SetResultsDirectory(TestResultsDirectory)
+                    .AddLoggers($"trx;LogFileName={TestResultsFile.Name}"));
+            }
+            finally
+            {
+                // Tests run in their own process, so their logs never reach Fallout's summary.
+                // Read the results back and log the failures from the build process instead.
+                ReportTestFailures(TestResultsFile);
+            }
         });
+
+
+    static void ReportTestFailures(AbsolutePath trxFile)
+    {
+        if (!File.Exists(trxFile))
+            return;
+
+        XNamespace ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
+        var failedResults = XDocument.Load(trxFile)
+            .Descendants(ns + "UnitTestResult")
+            .Where(result => (string?)result.Attribute("outcome") == "Failed");
+
+        foreach (var result in failedResults)
+        {
+            var message = result.Descendants(ns + "Message").FirstOrDefault()?.Value.Trim();
+            Log.Error("{Test} failed:\n{Message}", (string?)result.Attribute("testName"), message);
+        }
+    }
     
     // Create all packages with the same version
     private Target Pack => _ => _
