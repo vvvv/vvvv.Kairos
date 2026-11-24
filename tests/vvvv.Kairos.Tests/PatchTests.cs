@@ -1,4 +1,5 @@
-﻿using NuGet.Packaging.Core;
+﻿using System.Diagnostics;
+using NuGet.Packaging.Core;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 using VL.TestFramework;
@@ -9,7 +10,10 @@ public class PatchTests
 {
     private TestEnvironment? _testEnvironment;
     
-    private static readonly string VvvvDir = Environment.GetEnvironmentVariable("VVVV_DIR") ?? @"C:\Program Files\vvvv\vvvv_gamma_8.0-0369-g91b925904d-win-x64";
+    private static readonly string VvvvDir = 
+        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VVVV_DIR"))
+        ? @"C:\Program Files\vvvv\vvvv_gamma_8.0-0369-g91b925904d-win-x64"
+        : Environment.GetEnvironmentVariable("VVVV_DIR")!;   
     
     private static IEnumerable<string> PackageDirectories() =>
         Directory.EnumerateDirectories(TestPaths.RepositoryRoot, "VL.*").Order();
