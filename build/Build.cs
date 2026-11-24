@@ -83,6 +83,12 @@ class Build : FalloutBuild
                 .SetConfiguration("Release"));
         });
 
+    private Target Test => _ => _
+        .Executes(() =>
+        {
+
+        });
+    
     // Create all packages with the same version
     private Target Pack => _ => _
         .DependsOn(Compile)
