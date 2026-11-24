@@ -28,7 +28,8 @@
         "Compile",
         "Pack",
         "Publish",
-        "Restore"
+        "Restore",
+        "Test"
       ]
     },
     "Verbosity": {
@@ -123,6 +124,10 @@
         "NugetSource": {
           "type": "string",
           "description": "Nuget feed URL"
+        },
+        "VvvvDir": {
+          "type": "string",
+          "description": "Path to the vvvv installation used by the patch tests"
         }
       }
     },
