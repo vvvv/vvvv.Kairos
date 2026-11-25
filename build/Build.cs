@@ -52,6 +52,9 @@ class Build : FalloutBuild
     // Touchy
     private AbsolutePath TouchyProject => RootDirectory / "VL.Touchy" / "src" / "VL.Touchy.csproj";
 
+    // The package files of the current version, as Pack writes them
+    IEnumerable<AbsolutePath> PackageFiles => Packages.Select(package => ArtifactsDirectory / $"{package}.{Version}.nupkg");
+
     AbsolutePath TestProject => RootDirectory / "tests" / "vvvv.Kairos.Tests" / "vvvv.Kairos.Tests.csproj";
     AbsolutePath TestResultsDirectory => ArtifactsDirectory / "test-results";
     AbsolutePath TestResultsFile => TestResultsDirectory / "results.trx";
@@ -161,65 +164,68 @@ class Build : FalloutBuild
             }
         });
 
-    private Target Publish => _ => _
+    // Push every package of this version to the NuGet feed
+    private Target PublishNuGet => _ => _
         .DependsOn(Pack)
         //.OnlyWhenStatic(() => IsServerBuild)
         .Requires(() => NuGetApiKey)
-        .Requires(() => GitHubToken)
-        .Executes(async () =>
+        .Executes(() =>
         {
-            Log.Information("Publishing packages");
+            Log.Information("Publishing packages to {Source}", NugetSource);
 
-            // Push to nuget.org
-            foreach (var package in Packages)
+            foreach (var package in PackageFiles)
             {
                 try
                 {
-                    var packageFileName = $"{package}.{Version}.nupkg";
-                    Assert.FileExists(ArtifactsDirectory / packageFileName);
+                    Assert.FileExists(package);
 
                     DotNetNuGetPush(p => p
                         .SetSource(NugetSource)
                         .SetApiKey(NuGetApiKey)
-                        .SetTargetPath(ArtifactsDirectory / packageFileName));
+                        .SetTargetPath(package));
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"Failed to publish {package}");
+                    Log.Error(e, $"Failed to publish {package.Name}");
                     throw;
                 }
             }
+        });
 
-            // Create GitHub release
+    // Create a GitHub release for this version and attach its packages
+    private Target PublishGitHub => _ => _
+        .DependsOn(Pack)
+        .After(PublishNuGet)
+        .Requires(() => GitHubToken)
+        .Executes(async () =>
+        {
             var client = new GitHubClient(new ProductHeaderValue("kairos.fallout"))
             {
                 Credentials = new Credentials(GitHubToken)
             };
 
-            var release = new NewRelease(Version)
+            var release = await client.Repository.Release.Create("vvvv", "vvvv.Kairos", new NewRelease(Version)
             {
                 Name = Version,
                 Body = ""
-            };
+            });
 
-            var result = await client.Repository.Release.Create("vvvv", "vvvv.Kairos", release);
-
-            // Upload GitHub release artifacts
-            var lastRelease = await client.Repository.Release.GetLatest("vvvv", "vvvv.Kairos");
-            var artifacts = ArtifactsDirectory.GlobFiles("*.nupkg");
-
-            foreach (var artifact in artifacts)
+            foreach (var package in PackageFiles)
             {
-                var releaseAsset = new ReleaseAssetUpload()
+                Assert.FileExists(package);
+                Log.Information($"Uploading {package.Name}");
+
+                using var stream = File.OpenRead(package);
+                await client.Repository.Release.UploadAsset(release, new ReleaseAssetUpload
                 {
-                    FileName = artifact.Name,
-                    RawData = File.OpenRead(artifact),
+                    FileName = package.Name,
+                    RawData = stream,
                     ContentType = "application/octet-stream"
-                };
-                
-                Log.Information($"Uploading {releaseAsset.FileName}");
-                
-                var upload = await client.Repository.Release.UploadAsset(lastRelease, releaseAsset);
+                });
             }
         });
+
+    // Release to NuGet, then to GitHub
+    private Target Publish => _ => _
+        .DependsOn(PublishNuGet, PublishGitHub);
 }

@@ -28,6 +28,8 @@
         "Compile",
         "Pack",
         "Publish",
+        "PublishGitHub",
+        "PublishNuGet",
         "Restore",
         "Test"
       ]
